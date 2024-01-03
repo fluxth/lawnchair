@@ -109,15 +109,11 @@ final def buildCommit = providers.exec {
     commandLine('git', 'rev-parse', '--short=7', 'HEAD')
 }.standardOutput.asText.get().trim()
 
-final def ciBuild = System.getenv("CI") == "true"
-final def ciRef = System.getenv("GITHUB_REF") ?: ""
-final def ciRunNumber = System.getenv("GITHUB_RUN_NUMBER") ?: ""
-final def isReleaseBuild = ciBuild && ciRef.contains("alpha")
-final def devReleaseName = ciBuild ? "Dev (#${ciRunNumber})" : "Dev (${buildCommit})"
-final def version = "14"
-final def releaseName = "Beta 1"
-final def versionDisplayName = "${version} ${isReleaseBuild ? releaseName : devReleaseName}"
-final def majorVersion = versionDisplayName.split("\\.")[0]
+final def majorVersion = "14"
+final def buildVersion = "1"
+final def version = "${majorVersion}.0.0-${buildVersion}"
+final def versionDisplayName = "${version}-${buildCommit}"
+final def versionInt = majorVersion.toInteger() * 10000 + buildVersion.toInteger()
 
 final def quickstepMinSdk = "34"
 final def quickstepMaxSdk = "34"
@@ -125,7 +121,7 @@ final def quickstepMaxSdk = "34"
 android {
     namespace "com.android.launcher3"
     defaultConfig {
-        versionCode 14
+        versionCode versionInt
         versionName "${versionDisplayName}"
         buildConfigField "String", "VERSION_DISPLAY_NAME", "\"${versionDisplayName}\""
         buildConfigField "String", "MAJOR_VERSION", "\"${majorVersion}\""
@@ -156,7 +152,7 @@ android {
     applicationVariants.configureEach { variant ->
         variant.outputs.configureEach {
             def channel = variant.productFlavors.last().name
-            outputFileName = "Lawnchair ${variant.versionName} $channel ${variant.buildType.name}.apk"
+            outputFileName = "Lawnchair ${variant.versionName}.apk"
         }
     }
 
@@ -235,27 +231,17 @@ android {
     }
 
     // See: https://developer.android.com/studio/build/build-variants#flavor-dimensions
-    flavorDimensions += ["app", "recents", "channel"]
+    flavorDimensions += ["app", "recents"]
 
     productFlavors {
         lawn {
             dimension "app"
+            applicationId "app.lawnchair"
         }
 
         withQuickstep {
             dimension "recents"
-            minSdk 26
-        }
-
-        github {
-            applicationId 'app.lawnchair'
-            dimension "channel"
-        }
-
-        market {
-            applicationId "ch.deletescape.lawnchair.plah"
-            dimension "channel"
-            isDefault true
+            minSdk 29
         }
 
         configureEach {
@@ -284,14 +270,6 @@ android {
             proto {
                 srcDirs = ['lawnchair/protos/']
             }
-        }
-
-        lawnWithQuickstepGithub {
-            manifest.srcFile "quickstep/AndroidManifest-launcher.xml"
-        }
-
-        lawnWithQuickstepMarket {
-            manifest.srcFile "quickstep/AndroidManifest-launcher.xml"
         }
 
         withQuickstep {
